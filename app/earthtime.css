@@ -1,0 +1,1084 @@
+:root {
+  --bg-deep: #02030a;
+  --bg-mid: #061029;
+  --fg: #e6ecff;
+  --muted: #93a0c5;
+  --accent: #ffcb6b;
+  --accent-glow: rgba(255, 203, 107, 0.35);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #0a1530 0%, #02030a 100%);
+  color: var(--fg);
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+/* ---------- Header ---------- */
+header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+  z-index: 5;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo {
+  font-size: 30px;
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--accent-glow);
+  line-height: 1;
+}
+
+.brand-text .title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.brand-text .title .accent {
+  color: var(--accent);
+}
+
+.brand-text .subtitle {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.date-display {
+  text-align: center;
+}
+
+.date-display .date {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.date-display .utc-time {
+  font-size: 30px;
+  font-weight: 200;
+  letter-spacing: 6px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+.date-display .sun-info {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.actions button {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  border: 1px solid var(--line-strong);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.actions button:hover {
+  background: rgba(255, 203, 107, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- Map ---------- */
+main {
+  position: relative;
+  overflow: hidden;
+}
+
+.map-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  /* minmax(0, …) instead of a bare 1fr: a plain 1fr track has an implicit
+     min-content floor, and the globe canvas's intrinsic 2:1 aspect ratio makes
+     that floor = width/2. On very wide displays that inflated the row taller
+     than the map area, so the globe's height:100% fell back to its intrinsic
+     size and the sphere rendered low and clipped (issue #33). minmax(0, 1fr)
+     pins the track to the container, so the globe always fills and centers. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  padding: 10px;
+}
+
+#mapCanvas, #overlayCanvas {
+  grid-area: 1 / 1;
+  display: block;
+  border-radius: 4px;
+}
+
+#mapCanvas {
+  filter: drop-shadow(0 0 60px rgba(60, 110, 220, 0.18));
+  background: #02050d;
+}
+
+#overlayCanvas {
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ---------- 3D globe canvas ---------- */
+#globeCanvas {
+  display: block;
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #0a1330 0%, #02030a 80%);
+  border-radius: 4px;
+  cursor: grab;
+  z-index: 1;
+}
+
+#globeCanvas:active { cursor: grabbing; }
+
+#globeCanvas[hidden] { display: none; }
+
+/* When 3D mode is active the 2D canvases hide via [hidden]. */
+.actions button.active {
+  background: rgba(255, 203, 107, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- Burger menu (top-right dropdown) ---------- */
+.menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  background: linear-gradient(180deg, #0c1738 0%, #060c20 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(0,0,0,0.4);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 40;
+  animation: fadeIn 0.14s ease;
+}
+
+.menu[hidden] { display: none; }
+
+/* Dropdown rows override the pill look of .actions button. */
+.menu .menu-item {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg);
+  text-align: left;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.menu .menu-item:hover {
+  background: rgba(255, 203, 107, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.menu .menu-item.active {
+  background: rgba(255, 203, 107, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.loading {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* A small wireframe globe whose meridians sweep round, so the load reads as a
+   spinning Earth rather than a generic spinner. */
+.loading-globe {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  filter: drop-shadow(0 0 16px rgba(255, 203, 107, 0.30));
+}
+.loading-globe span {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 203, 107, 0.5);
+}
+.loading-globe .g-ring { border-color: rgba(255, 203, 107, 0.85); }
+.loading-globe .g-eq {
+  inset: 50% 0 auto 0;
+  height: 0;
+  border: none;
+  border-top: 1.5px solid rgba(255, 203, 107, 0.28);
+  border-radius: 0;
+}
+.loading-globe .g-mer {
+  border-color: rgba(255, 203, 107, 0.45);
+  animation: globe-spin 2.2s linear infinite;
+}
+.loading-globe .g-mer.m2 { animation-delay: -0.73s; }
+.loading-globe .g-mer.m3 { animation-delay: -1.46s; }
+
+.loading .loading-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes globe-spin {
+  0%, 100% { transform: scaleX(1);    opacity: 0.45; }
+  50%      { transform: scaleX(0.08); opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* ---------- Footer ---------- */
+footer {
+  border-top: 1px solid var(--line);
+  padding: 10px 18px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+  z-index: 5;
+}
+
+.cities {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 4px 14px;
+}
+
+.city {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+  border-radius: 6px;
+  transition: background 0.3s ease;
+}
+
+.city .name {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.city .dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2a3454;
+  transition: all 0.3s ease;
+}
+
+.city.daylight .dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.city .time {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1.5px;
+  margin-top: 3px;
+  font-weight: 300;
+}
+
+.city.daylight .time {
+  color: var(--accent);
+}
+
+/* ---------- Day-of-week tabs (overlaid on the map, bottom edge) ---------- */
+.day-tabs {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  padding: 0 4px;
+}
+
+.day-tab {
+  background: rgba(2, 6, 18, 0.85);
+  color: var(--fg);
+  border: 1px solid rgba(255, 203, 107, 0.45);
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(255, 203, 107, 0.18), inset 0 0 0 1px rgba(0,0,0,0.4);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-tab .arrow {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.day-tab.center {
+  border-color: rgba(255,255,255,0.18);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+/* ---------- Map hover tooltip ---------- */
+.map-tooltip {
+  position: fixed;
+  z-index: 80;   /* above the pin-placement overlay (70) so the readout shows while aiming */
+  pointer-events: none;
+  background: rgba(8, 14, 32, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 203, 107, 0.42);
+  border-radius: 10px;
+  padding: 11px 16px 12px;
+  min-width: 200px;
+  color: var(--fg);
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.4) inset,
+    0 0 24px rgba(255, 203, 107, 0.15);
+  transition: opacity 0.12s ease;
+  opacity: 1;
+}
+
+.map-tooltip[hidden] { display: none; }
+
+.map-tooltip .tip-city {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-tooltip .tip-country {
+  font-size: 9px;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.map-tooltip .tip-time {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 3px;
+  margin: 6px 0 3px;
+  font-weight: 200;
+}
+
+.map-tooltip .tip-date {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.map-tooltip .tip-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.map-tooltip .tip-phase .swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.map-tooltip .tip-phase.day .swatch    { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+.map-tooltip .tip-phase.day            { color: var(--accent); }
+.map-tooltip .tip-phase.twilight .swatch { background: #ff9b6b; }
+.map-tooltip .tip-phase.twilight       { color: #ffb088; }
+.map-tooltip .tip-phase.night .swatch  { background: #4a6bcc; }
+
+.map-tooltip .tip-sunrise {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 11px;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.map-tooltip .tip-sunrise .sunrise { color: #ffd27a; }
+.map-tooltip .tip-sunrise .sunset  { color: #ff9b6b; }
+
+.map-tooltip .tip-coords {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#mapCanvas { cursor: crosshair; }
+
+/* ---------- Settings modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-backdrop[hidden] { display: none; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background: linear-gradient(180deg, #0a1330 0%, #050a1c 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h2 {
+  font-size: 14px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.modal-close {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 6px;
+}
+
+.modal-close:hover { color: var(--fg); }
+
+.modal-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.panel h3 {
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.panel .hint {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: none;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-top: 6px;
+}
+
+.panel .hint code {
+  background: rgba(255,255,255,0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+}
+
+.panel .hint a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.city-list, .search-results {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.city-list:empty::after,
+.search-results:empty::after {
+  content: 'Nothing here yet.';
+  color: var(--muted);
+  font-size: 11px;
+  padding: 8px;
+}
+
+.search-results { max-height: 220px; flex-direction: column; flex-wrap: nowrap; gap: 1px; }
+
+.city-chip {
+  background: rgba(255, 203, 107, 0.10);
+  border: 1px solid rgba(255, 203, 107, 0.35);
+  color: var(--fg);
+  border-radius: 16px;
+  padding: 5px 10px 5px 12px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.city-chip .country {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.city-chip .remove {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.city-chip .remove:hover { color: #ff8080; }
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.result-row:hover { background: rgba(255, 203, 107, 0.10); }
+
+.result-row .meta { color: var(--muted); font-size: 10px; }
+
+.result-row.added {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.result-row.added::after {
+  content: '✓ added';
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+#citySearch, .custom-row input {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--fg);
+  font-size: 13px;
+  width: 100%;
+  font-family: inherit;
+  margin-bottom: 8px;
+}
+
+#citySearch:focus, .custom-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.custom-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.4fr 0.7fr 0.7fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.custom-row input { margin: 0; }
+
+.custom-row button {
+  background: rgba(255, 203, 107, 0.18);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 14px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.modal-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.modal-foot button {
+  border-radius: 6px;
+  padding: 9px 18px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--fg);
+}
+
+.modal-foot button.primary {
+  background: var(--accent);
+  color: #0c0a04;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.modal-foot button.ghost {
+  background: transparent;
+  color: var(--muted);
+}
+
+.modal-foot button:hover { filter: brightness(1.15); }
+
+/* ---------- Help / tutorial modal ---------- */
+.help-intro {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.help-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.help-item:last-of-type {
+  border-bottom: none;
+}
+
+.help-item .help-icon {
+  font-size: 22px;
+  flex: 0 0 32px;
+  text-align: center;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.help-item .help-text h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.help-item .help-text p {
+  font-size: 12.5px;
+  color: var(--fg);
+  line-height: 1.55;
+  opacity: 0.92;
+}
+
+.help-item .help-text strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.help-tip {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 203, 107, 0.06);
+  border-radius: 6px;
+  border-left: 2px solid var(--accent);
+  line-height: 1.5;
+}
+
+.help-tip kbd {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  color: var(--fg);
+}
+
+.help-tip strong { color: var(--accent); }
+
+/* ---------- Family-member pins ---------- */
+.pin-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;   /* individual pins re-enable events on the × only */
+  z-index: 3;             /* above the map/overlay, below header(5)/tooltip(60) */
+}
+
+.fam-pin {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  will-change: left, top;
+}
+
+.fam-pin .fam-pin-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe6a8 0%, #ffcb6b 45%, #d98a2b 100%);
+  border: 1.5px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 10px rgba(255, 203, 107, 0.7), 0 2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;      /* the dot is a drag handle */
+  cursor: grab;
+}
+
+.fam-pin .fam-pin-card {
+  position: absolute;
+  bottom: 14px;           /* float just above the dot */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  background: rgba(8, 14, 32, 0.92);
+  border: 1px solid rgba(255, 203, 107, 0.5);
+  border-radius: 8px;
+  padding: 4px 6px 4px 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* little pointer tail from the card down to the dot */
+.fam-pin .fam-pin-card::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: rgba(8, 14, 32, 0.92);
+  border-right: 1px solid rgba(255, 203, 107, 0.5);
+  border-bottom: 1px solid rgba(255, 203, 107, 0.5);
+}
+
+.fam-pin .fam-pin-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--accent);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fam-pin .fam-pin-clock {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  color: var(--fg);
+}
+
+.fam-pin .fam-pin-del {
+  pointer-events: auto;   /* the one clickable part of a pin */
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+.fam-pin .fam-pin-del:hover { color: #ff8080; }
+
+/* "Me" pin — the user's own location, in cool blue to set it apart from the
+   gold family pins. */
+.fam-pin.me-pin .fam-pin-dot {
+  background: radial-gradient(circle at 35% 30%, #dff4ff 0%, #67c8f0 45%, #2b8ad9 100%);
+  box-shadow: 0 0 12px rgba(103, 200, 240, 0.85), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.fam-pin.me-pin .fam-pin-card { border-color: rgba(120, 200, 240, 0.7); }
+.fam-pin.me-pin .fam-pin-card::after {
+  border-right-color: rgba(120, 200, 240, 0.7);
+  border-bottom-color: rgba(120, 200, 240, 0.7);
+}
+.fam-pin.me-pin .fam-pin-name { color: #8fd6f5; }
+
+/* While a pin is being dragged, show the grabbing cursor everywhere. */
+body.dragging-pin, body.dragging-pin .fam-pin .fam-pin-dot { cursor: grabbing !important; }
+
+/* ---------- Pin-placement mode ---------- */
+.pin-placer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  cursor: crosshair;
+  background: rgba(2, 6, 18, 0.05);
+}
+
+.pin-placer[hidden] { display: none; }
+
+.pin-placer-hint {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;   /* clicks fall through to the placer; the button re-enables */
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(8, 14, 32, 0.95);
+  border: 1px solid rgba(255, 203, 107, 0.55);
+  border-radius: 10px;
+  padding: 10px 12px 10px 16px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--fg);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 22px rgba(255, 203, 107, 0.18);
+}
+
+.pin-placer-hint button {
+  pointer-events: auto;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.pin-placer-hint button:hover { color: var(--fg); border-color: var(--accent); }
+
+/* ---------- Name-the-pin modal ---------- */
+.pin-modal { width: min(420px, 92vw); }
+
+.pin-modal .pin-loc {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.pin-modal .pin-loc strong { color: var(--accent); }
+
+#pinNameInput {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--fg);
+  font-size: 14px;
+  width: 100%;
+  font-family: inherit;
+}
+
+#pinNameInput:focus { outline: none; border-color: var(--accent); }
+
+/* =========================================================================
+   Light theme — opt-in via data-theme="light" on <html> (toggle in the ☰ menu).
+   Re-themes the UI chrome (header, footer, city strip, menus, tooltips, modals,
+   pins). The Earth map and 3D globe keep their real day/night + starry-space
+   look — that's content, not theming.
+   ========================================================================= */
+[data-theme="light"] {
+  --fg: #1b2840;
+  --muted: #5d6e8c;
+  --accent: #b8770e;
+  --accent-glow: rgba(184, 119, 14, 0.32);
+  --line: rgba(20, 35, 70, 0.12);
+  --line-strong: rgba(20, 35, 70, 0.22);
+}
+
+[data-theme="light"] body {
+  background: radial-gradient(ellipse at 50% -12%, #f1f6fd 0%, #d7e3f3 66%, #ccd9ec 100%);
+}
+
+[data-theme="light"] header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0));
+}
+[data-theme="light"] footer {
+  background: linear-gradient(0deg, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0));
+}
+
+[data-theme="light"] .actions button { background: rgba(20, 40, 80, 0.05); }
+[data-theme="light"] .actions button:hover,
+[data-theme="light"] .actions button.active { background: rgba(184, 119, 14, 0.14); }
+
+[data-theme="light"] .menu {
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  box-shadow: 0 18px 46px rgba(40, 60, 100, 0.20), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+[data-theme="light"] .menu .menu-item:hover,
+[data-theme="light"] .menu .menu-item.active { background: rgba(184, 119, 14, 0.12); }
+
+[data-theme="light"] .city .dot { background: #b9c4d8; }
+
+[data-theme="light"] .day-tab {
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 2px 12px rgba(40, 60, 100, 0.18);
+}
+[data-theme="light"] .day-tab.center { border-color: rgba(20, 35, 70, 0.18); }
+
+[data-theme="light"] .map-tooltip {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 40px rgba(40, 60, 100, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+[data-theme="light"] .modal-backdrop { background: rgba(22, 34, 60, 0.48); }
+[data-theme="light"] .modal {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5fc 100%);
+  box-shadow: 0 30px 80px rgba(30, 45, 80, 0.32);
+}
+[data-theme="light"] .modal-foot { background: rgba(20, 40, 80, 0.03); }
+[data-theme="light"] .modal-foot button.primary { color: #fff; }
+
+[data-theme="light"] #citySearch,
+[data-theme="light"] .custom-row input,
+[data-theme="light"] #pinNameInput { background: rgba(20, 40, 80, 0.045); }
+
+[data-theme="light"] .city-list,
+[data-theme="light"] .search-results { background: rgba(20, 40, 80, 0.03); }
+
+[data-theme="light"] .result-row:hover { background: rgba(184, 119, 14, 0.10); }
+
+[data-theme="light"] .panel .hint code,
+[data-theme="light"] .help-tip kbd {
+  background: rgba(20, 40, 80, 0.07);
+  border-color: rgba(20, 35, 70, 0.15);
+}
+
+[data-theme="light"] .fam-pin .fam-pin-card,
+[data-theme="light"] .pin-placer-hint {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 22px rgba(40, 60, 100, 0.25);
+}
+[data-theme="light"] .fam-pin .fam-pin-card::after { background: rgba(255, 255, 255, 0.96); }
+
+/* In light mode the map/globe areas show a bright Earth on a light sky. */
+[data-theme="light"] #mapCanvas   { background: #cdd9ec; }
+[data-theme="light"] #globeCanvas { background: radial-gradient(ellipse at 50% 30%, #cfe0f5 0%, #b9cde8 80%); }
