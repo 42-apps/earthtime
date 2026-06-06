@@ -410,7 +410,6 @@ function localDateForTz(now, tz) {
 let measurement   = null;   /* {startLat, startLon, endLat, endLon, dragging, showFullPill} */
 let pendingDown   = null;   /* {startLat, startLon, x, y} — set on mousedown, promoted to measurement once cursor moves (flat map) */
 let globeDown     = null;   /* {startLat, startLon, x, y} — same, but for a Shift+drag on the globe */
-let globeClickDown = null;  /* {lat, lon, x, y} — plain press on the globe; a click (no drag) drops a pin */
 let hoveringGlobe = false;  /* true while the cursor is over the globe (pauses auto-rotate so the tooltip is readable) */
 let pillIdleTimer = null;   /* setTimeout id — fires after the cursor has stopped moving, revealing the full pill */
 const PILL_IDLE_MS = 500;
@@ -1855,13 +1854,12 @@ async function init() {
     if (e.button !== 0) return;
     const { lat, lon, inside } = pixelToLatLon(e);
     if (!inside) return;
-    /* Stash the down position. A drag (>5px) becomes a measurement; a plain
-       click drops a family/friend pin (handled on mouseup). hadMeasurement
-       remembers whether this gesture started by clearing a measurement, so
-       "click to clear the measurement" doesn't also drop a pin. */
-    const hadMeasurement = !!measurement;
+    /* Stash the down position; promote to an actual measurement only once
+       the user drags more than a few pixels (so a plain click doesn't flash
+       a stray dot on the overlay). */
+    pendingDown = { startLat: lat, startLon: lon, x: e.clientX, y: e.clientY };
+    /* Clear any prior measurement immediately on a new gesture. */
     if (measurement) clearMeasurement();
-    pendingDown = { startLat: lat, startLon: lon, x: e.clientX, y: e.clientY, hadMeasurement };
     hideTooltip();
     e.preventDefault();
   });
@@ -1905,26 +1903,17 @@ async function init() {
     }
   });
 
-  /* Catch mouseup even if the user releases off-canvas — finalize a drag, or,
-     if it was a plain click on the map/globe, drop a family/friend pin. */
-  window.addEventListener('mouseup', (e) => {
+  /* Catch mouseup even if the user releases off-canvas — show the full pill
+     immediately on release. */
+  window.addEventListener('mouseup', () => {
     if (measurement && measurement.dragging) {
       measurement.dragging = false;
       measurement.showFullPill = true;
       cancelPillReveal();
       refreshMeasurement();
-    } else if (appMenu.hidden) {
-      /* A plain click (no drag, no measurement to clear) drops a pin. */
-      if (pendingDown && !pendingDown.hadMeasurement) {
-        openPinNameModal(pendingDown.startLat, pendingDown.startLon);
-      } else if (globeClickDown && !globeClickDown.hadMeasurement && viewMode === '3d') {
-        const dx = e.clientX - globeClickDown.x, dy = e.clientY - globeClickDown.y;
-        if (dx * dx + dy * dy <= 25) openPinNameModal(globeClickDown.lat, globeClickDown.lon);
-      }
     }
-    pendingDown    = null;
-    globeDown      = null;
-    globeClickDown = null;
+    pendingDown = null;
+    globeDown   = null;
   });
 
   /* === Globe interaction: hover tooltip (any drag) + Shift+drag distance ===
@@ -1934,23 +1923,14 @@ async function init() {
   const globePick = (e) => (globe ? globe.pickLatLon(e.clientX, e.clientY) : null);
 
   globeCanvas.addEventListener('mousedown', (e) => {
-    if (viewMode !== '3d' || !globe || e.button !== 0) return;
+    if (viewMode !== '3d' || !globe) return;
+    if (e.button !== 0 || !e.shiftKey) return;   // plain drag → rotate (handled by globe)
     const hit = globePick(e);
-    if (e.shiftKey) {                            // Shift+drag → great-circle measurement
-      if (!hit) return;
-      globeDown = { startLat: hit.lat, startLon: hit.lon, x: e.clientX, y: e.clientY };
-      if (measurement) clearMeasurement();
-      hideTooltip();
-      e.preventDefault();
-    } else {
-      /* Plain press: a click (released without dragging) drops a pin; a drag
-         rotates the globe (its own pointer code handles that). */
-      const hadMeasurement = !!measurement;
-      if (measurement && hit) clearMeasurement();
-      globeClickDown = hit
-        ? { lat: hit.lat, lon: hit.lon, x: e.clientX, y: e.clientY, hadMeasurement }
-        : null;
-    }
+    if (!hit) return;
+    globeDown = { startLat: hit.lat, startLon: hit.lon, x: e.clientX, y: e.clientY };
+    if (measurement) clearMeasurement();
+    hideTooltip();
+    e.preventDefault();
   });
 
   globeCanvas.addEventListener('mousemove', (e) => {
