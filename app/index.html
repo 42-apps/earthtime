@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EarthTime — World Day &amp; Night</title>
+  <link rel="stylesheet" href="earthtime.css" />
+  <script src="theme-init.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="logo">◐</div>
+        <div class="brand-text">
+          <div class="title"><span class="accent">Earth</span>Time</div>
+          <div class="subtitle">World Day &amp; Night</div>
+        </div>
+      </div>
+      <div class="date-display">
+        <div class="date" id="dateDisplay">—</div>
+        <div class="utc-time" id="utcTime">—</div>
+        <div class="sun-info" id="sunInfo">Subsolar point: —</div>
+      </div>
+      <div class="actions">
+        <button id="menuBtn" class="menu-btn" title="Menu" aria-haspopup="true" aria-expanded="false">☰ Menu</button>
+        <div class="menu" id="appMenu" role="menu" hidden>
+          <button class="menu-item" id="viewToggleBtn" role="menuitem" title="Switch between flat map and 3D globe">🌐 Globe</button>
+          <button class="menu-item" id="mapStyleBtn" role="menuitem" title="Switch the day-map style: Classic dark oceans ↔ Blue Marble">🗺 Map: Classic</button>
+          <button class="menu-item" id="themeBtn" role="menuitem" title="Switch between dark and light theme">🌗 Theme: Dark</button>
+          <button class="menu-item" id="addPinBtn" role="menuitem" title="Drop a family or friend's pin — or just click the map/globe">📍 Add family/friend pin</button>
+          <button class="menu-item" id="settingsBtn" role="menuitem" title="Configure cities">⚙ Cities</button>
+          <button class="menu-item" id="fullscreenBtn" role="menuitem" title="Toggle fullscreen">⛶ Fullscreen</button>
+          <button class="menu-item" id="helpBtn" role="menuitem" title="Show help / tutorial">? Help</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="map-wrap">
+        <canvas id="mapCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+        <canvas id="globeCanvas" hidden></canvas>
+        <div class="day-tabs" id="dayTabs"></div>
+        <div class="loading" id="loading"><div class="loading-globe"><span class="g-ring"></span><span class="g-eq"></span><span class="g-mer m1"></span><span class="g-mer m2"></span><span class="g-mer m3"></span></div><span class="loading-label">Loading Earth…</span></div>
+        <div class="map-tooltip" id="mapTooltip" hidden></div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="cities" id="cities"></div>
+    </footer>
+  </div>
+
+  <!-- Family-member pins (positioned over the map by JS) -->
+  <div class="pin-layer" id="pinLayer"></div>
+
+  <!-- Pin-placement mode: full-screen catcher + hint banner -->
+  <div class="pin-placer" id="pinPlacer" hidden>
+    <div class="pin-placer-hint">
+      <span>📍 Click the map to drop a family/friend pin · <kbd>Esc</kbd> to cancel</span>
+      <button id="pinPlacerCancel">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Name-the-pin modal -->
+  <div class="modal-backdrop" id="pinNameBackdrop" hidden>
+    <div class="modal pin-modal" role="dialog" aria-modal="true" aria-labelledby="pinNameTitle">
+      <header class="modal-head">
+        <h2 id="pinNameTitle">Add family/friend pin</h2>
+        <button class="modal-close" id="pinNameClose" aria-label="Close">×</button>
+      </header>
+      <div class="modal-body">
+        <p class="pin-loc" id="pinNameLoc">—</p>
+        <input type="text" id="pinNameInput" placeholder="Name (e.g. Mom, or a friend)" maxlength="40" autocomplete="off" />
+      </div>
+      <footer class="modal-foot">
+        <button class="ghost" id="pinNameCancel">Cancel</button>
+        <button class="primary" id="pinNameAdd">Drop pin</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal-head">
+        <h2 id="modalTitle">Configure Cities</h2>
+        <button class="modal-close" id="modalClose" aria-label="Close">×</button>
+      </header>
+
+      <div class="modal-body">
+        <section class="panel">
+          <h3>Your cities <span class="hint">(displayed left → right by longitude)</span></h3>
+          <ul class="city-list" id="userCityList"></ul>
+        </section>
+
+        <section class="panel">
+          <h3>Add from database</h3>
+          <input type="search" id="citySearch" placeholder="Search 250+ cities by name or country…" autocomplete="off" />
+          <ul class="search-results" id="searchResults"></ul>
+        </section>
+
+        <section class="panel">
+          <h3>Add a custom city</h3>
+          <div class="custom-row">
+            <input type="text" id="customName" placeholder="Name (e.g. My Cabin)" />
+            <input type="text" id="customTz" placeholder="IANA TZ (e.g. America/Denver)" />
+            <input type="number" id="customLat" placeholder="Lat" step="0.01" min="-90" max="90" />
+            <input type="number" id="customLon" placeholder="Lon" step="0.01" min="-180" max="180" />
+            <button id="customAddBtn">Add</button>
+          </div>
+          <div class="hint">
+            Use an IANA timezone like <code>Europe/Paris</code> or <code>America/Los_Angeles</code>.
+            See <a href="https://en.wikipedia.org/wiki/List_of_tz_database_time_zones" target="_blank" rel="noopener">the list</a>.
+          </div>
+        </section>
+      </div>
+
+      <footer class="modal-foot">
+        <button class="ghost" id="resetCitiesBtn">Reset to defaults</button>
+        <button class="primary" id="doneBtn">Done</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- First-run / on-demand help tutorial -->
+  <div class="modal-backdrop" id="helpBackdrop" hidden>
+    <div class="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <header class="modal-head">
+        <h2 id="helpTitle">Welcome to EarthTime</h2>
+        <button class="modal-close" id="helpClose" aria-label="Close">×</button>
+      </header>
+
+      <div class="modal-body">
+        <p class="help-intro">A live world day/night clock. Here's what you can do:</p>
+
+        <section class="help-item">
+          <div class="help-icon">🌍</div>
+          <div class="help-text">
+            <h4>Hover the map</h4>
+            <p>Move your cursor anywhere on Earth to see the nearest city, its local time, sunrise &amp; sunset, day phase, and the cursor's coordinates.</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">✈</div>
+          <div class="help-text">
+            <h4>Click and drag — measure distance</h4>
+            <p>Drag from one point to another to draw a great-circle path. A small live "km" chip follows your cursor while you drag; release (or pause briefly) and the full panel pops in with distance, bearing, and approximate flight times for Concorde, Boom Overture, Private Jet and Jumbo Jet. On the 3D globe, hold <kbd>Shift</kbd> while dragging (a plain drag spins the globe instead).</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">⚙</div>
+          <div class="help-text">
+            <h4>Configure cities</h4>
+            <p>Open the <strong>☰ Menu</strong> and choose <strong>⚙ Cities</strong> to add, remove, or search ~240 world cities for the bottom clock strip. Your list is saved locally and the strip auto-sorts west → east.</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">🌗</div>
+          <div class="help-text">
+            <h4>Solar terminator + day-of-week tabs</h4>
+            <p>The gold curve is the day/night boundary, computed in real time. The dashed cyan line is the <strong>International Date Line</strong> (180° meridian). The tabs at the bottom show today's day on each side of the IDL.</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">🌐</div>
+          <div class="help-text">
+            <h4>2D ↔ 3D Globe</h4>
+            <p>From the <strong>☰ Menu</strong>, choose <strong>🌐 Globe</strong> to swap the flat map for a spinable 3D Earth with the same real-time day/night lighting. Drag the globe to rotate, scroll to zoom, leave it idle for a moment and it auto-spins. <strong>Hover</strong> anywhere for the live location readout, and hold <kbd>Shift</kbd> while dragging to measure a great-circle distance — the same tools as the flat map.</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">📍</div>
+          <div class="help-text">
+            <h4>Family &amp; friend pins</h4>
+            <p><strong>Just click</strong> anywhere on the flat map or the globe to drop a pin (or use <strong>☰ Menu → 📍 Add family/friend pin</strong>). Give it a name and it shows a live <strong>hours:minutes</strong> clock for that location. Pins stay put on both the map and the globe; drag a pin's dot to move it, or hover and click its <strong>×</strong> to remove it.</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">☰</div>
+          <div class="help-text">
+            <h4>Menu</h4>
+            <p>The <strong>☰ Menu</strong> in the top-right corner holds everything: switch between Globe and Flat, add family/friend pins, configure cities, go fullscreen, and re-open this help.</p>
+          </div>
+        </section>
+
+        <section class="help-item">
+          <div class="help-icon">⛶</div>
+          <div class="help-text">
+            <h4>Fullscreen</h4>
+            <p>From the <strong>☰ Menu</strong>, choose <strong>⛶ Fullscreen</strong> for the full immersive view. Press <kbd>Esc</kbd> to exit.</p>
+          </div>
+        </section>
+
+        <p class="help-tip">Tip: press <kbd>Esc</kbd> or click anywhere on the map to clear a distance measurement. You can re-open this help anytime via the <strong>? Help</strong> button in the header.</p>
+      </div>
+
+      <footer class="modal-foot">
+        <button class="primary" id="helpDoneBtn">Got it</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="cities-db.js"></script>
+  <script src="lib/globe.js"></script>
+  <script src="earthtime.js"></script>
+</body>
+</html>
