@@ -28,6 +28,14 @@
     border: 1px solid rgba(255,255,255,.16);
     box-shadow: 0 6px 24px rgba(47,111,224,.35);
   }
+  .cta:hover { filter: brightness(1.06); }
+  .cta.ghost {
+    background: rgba(255,255,255,.05);
+    color: #d7e6ff;
+    box-shadow: none;
+    border-color: rgba(255,255,255,.22);
+  }
+  .cta.ghost:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.38); filter: none; }
   .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 8px; align-items: center; }
   .note { color: #8aa0bd; font-size: 14px; margin: 14px 0 0; }
   h2 { font-size: 22px; margin: 52px 0 16px; color: #fff; }
@@ -54,7 +62,7 @@
 </head>
 <body>
 <div class="wrap">
-  <p class="eyebrow">Chrome Extension</p>
+  <p class="eyebrow">Chrome Extension &middot; Web App</p>
   <h1>EarthTime</h1>
   <p class="lede">A beautiful, living world day &amp; night clock. Open a tab and
   see exactly where it's day and where it's night, right now — a real-time sun
@@ -63,8 +71,10 @@
   <div class="ctas">
     <!-- TODO: replace href with the real Chrome Web Store listing URL once published -->
     <a class="cta" href="https://chromewebstore.google.com/detail/hmnepkeobpcdplgcieogjbncjkfblamc">Get it on the Chrome Web Store</a>
+    <a class="cta ghost" href="app/">Open the web app &rarr;</a>
   </div>
-  <p class="note">Private by default · makes no network requests · works fully offline</p>
+  <p class="note">Private by default · no sign-in · no tracking — your pins &amp; settings stay on your device.</p>
+  <p class="note">No install needed: <strong>the web app</strong> runs the whole clock right in your browser. Its pins are saved on your device, separate from the extension's.</p>
 
   <h2>What it does</h2>
   <div class="grid">
@@ -101,9 +111,11 @@
   </div>
 
   <div class="privacy">
-    <strong>Privacy:</strong> EarthTime collects nothing, sends nothing, and makes
-    no network requests. Your settings stay on your device. Read the full
-    <a href="privacy.html">privacy policy</a>.
+    <strong>Privacy:</strong> EarthTime collects nothing and sends nothing — no
+    accounts, no tracking, no ads. Your pins &amp; settings stay on your device. The
+    Chrome extension bundles all its imagery and makes no network requests at all;
+    the web app loads only its own files, then runs entirely in your browser. Read
+    the full <a href="privacy.html">privacy policy</a>.
   </div>
 
   <footer>
